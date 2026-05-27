@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Deals Workstation - Armador de Combos</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <style>
+    :root {
+      --primary: #3b82f6;
+      --primary-dark: #1d4ed8;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --warning: #facc15;
+      --bg: #06111f;
+      --card: #0b1b2e;
+      --card-2: #10243b;
+      --text: #e5edf8;
+      --muted: #9fb0c6;
+      --border: #213955;
+      --soft: #122943;
+      --shadow: 0 12px 34px rgba(0,0,0,0.34);
+      --radius: 16px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: "Segoe UI", Roboto, Arial, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(59,130,246,0.16), transparent 34%),
+        radial-gradient(circle at top right, rgba(29,78,216,0.12), transparent 28%),
+        var(--bg);
+      color: var(--text);
+    }
+
+    .app { width: 100%; max-width: 1220px; margin: 0 auto; }
+
+    .topbar {
+      background: linear-gradient(135deg, #07182c, #0b2a4a 48%, #06111f);
+      color: white;
+      border-radius: var(--radius);
+      padding: 22px;
+      margin-bottom: 18px;
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(96,165,250,0.22);
+    }
+
+    .topbar h1 { margin: 0 0 6px; font-size: clamp(1.4rem, 3.5vw, 2.2rem); }
+    .topbar p { margin: 0; color: rgba(255,255,255,0.84); font-size: 0.98rem; }
+
+    .view-tabs { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 18px; }
+    @media (min-width: 700px) { .view-tabs { grid-template-columns: repeat(2, 1fr); } }
+
+    .tab-btn {
+      border: 1px solid rgba(80,121,168,0.45);
+      background: var(--card-2);
+      color: var(--text);
+      border-radius: 14px;
+      padding: 14px 16px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .tab-btn.active {
+      background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+      color: white;
+      border-color: rgba(147,197,253,0.8);
+    }
+
+    .view { display: none; }
+    .view.active { display: block; }
+
+    .view-grid, .build-grid { display: grid; grid-template-columns: 1fr; gap: 18px; align-items: start; }
+    .build-side { display: grid; gap: 18px; }
+
+    @media (min-width: 980px) {
+      .view-grid { grid-template-columns: 0.95fr 1.05fr; }
+      .build-grid { grid-template-columns: minmax(0, 1.28fr) minmax(360px, 0.72fr); }
+      .build-side { position: sticky; top: 16px; }
+    }
+
+    .card {
+      background: linear-gradient(180deg, var(--card), #081827);
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(80,121,168,0.32);
+    }
+
+    h2 { margin: 0 0 16px; font-size: 1.2rem; border-bottom: 2px solid #60a5fa; padding-bottom: 10px; }
+    h3 { margin: 0 0 12px; font-size: 1rem; color: #f8fbff; }
+    .help { color: var(--muted); font-size: 0.88rem; line-height: 1.45; margin: -4px 0 14px; }
+    .field { display: grid; gap: 6px; margin-bottom: 12px; }
+    label { font-size: 0.82rem; color: #f8fbff; font-weight: 700; }
+
+    input, textarea, select {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 11px 12px;
+      font-size: 0.95rem;
+      background: #081827;
+      color: var(--text);
+      outline: none;
+    }
+
+    input::placeholder, textarea::placeholder { color: #71839a; }
+    input:focus, textarea:focus, select:focus { border-color: #60a5fa; box-shadow: 0 0 0 3px rgba(96,165,250,0.18); }
+    textarea { resize: vertical; min-height: 240px; line-height: 1.45; }
+
+    .btn {
+      border: none;
+      border-radius: 10px;
+      padding: 11px 14px;
+      font-size: 0.92rem;
+      font-weight: 800;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 42px;
+    }
+
+    .btn-primary { background: linear-gradient(135deg, var(--primary-dark), var(--primary)); color: white; }
+    .btn-success { background: linear-gradient(135deg, #15803d, #22c55e); color: white; }
+    .btn-danger { background: linear-gradient(135deg, #b91c1c, #ef4444); color: white; }
+    .btn-soft { background: #14304d; color: var(--text); }
+    .btn-warning { background: linear-gradient(135deg, #eab308, #fde047); color: #0f172a; }
+    .btn-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+    .btn-row .btn { flex: 1 1 180px; }
+
+    .stats, .two-cols { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    @media (min-width: 700px) { .stats, .two-cols { grid-template-columns: repeat(2, 1fr); } }
+
+    .stat, .category-card, .total-box {
+      background: linear-gradient(180deg, #0d2035, #091a2c);
+      border: 1px solid rgba(80,121,168,0.35);
+      border-radius: 14px;
+    }
+
+    .stat { padding: 12px; text-align: center; }
+    .stat strong { display: block; color: #60a5fa; font-size: 1.35rem; }
+    .stat span { color: var(--muted); font-size: 0.78rem; font-weight: 700; }
+
+    .category-card { padding: 14px; margin-bottom: 12px; }
+    .category-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+    .category-title { font-weight: 900; color: #f8fbff; display: flex; align-items: center; gap: 8px; }
+    .category-count { font-size: 0.75rem; color: var(--muted); background: #081827; border: 1px solid var(--border); border-radius: 999px; padding: 5px 8px; white-space: nowrap; }
+
+    .combo-row { display: grid; grid-template-columns: 1fr 120px 90px 44px; gap: 8px; align-items: start; margin-bottom: 8px; }
+    @media (max-width: 760px) {
+      .combo-row { grid-template-columns: 1fr 1fr; }
+      .combo-row .product-wrap { grid-column: 1 / -1; }
+      .combo-row .remove-btn { width: 100%; }
+    }
+
+    .product-wrap { position: relative; }
+    .suggestions {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      z-index: 20;
+      background: #081827;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 18px 40px rgba(0,0,0,0.42);
+      max-height: 260px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .suggestion-item { padding: 10px 12px; cursor: pointer; border-bottom: 1px solid rgba(80,121,168,0.25); }
+    .suggestion-item:hover { background: #102b48; }
+    .suggestion-main { font-weight: 800; font-size: 0.9rem; color: #f8fbff; }
+    .suggestion-meta, .muted-note, .no-results { color: var(--muted); font-size: 0.77rem; }
+    .no-results { padding: 12px; }
+
+    .stock-pill { border-radius: 999px; padding: 2px 7px; font-size: 0.74rem; font-weight: 800; background: rgba(34,197,94,0.18); color: #86efac; }
+    .stock-zero { background: rgba(239,68,68,0.2); color: #fca5a5; }
+
+    .total-box { padding: 18px; text-align: center; margin-bottom: 12px; border: 2px solid rgba(96,165,250,0.22); }
+    .total-box span { display: block; color: var(--muted); font-weight: 800; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .total-box strong { color: #60a5fa; font-size: clamp(1.7rem, 5vw, 2.55rem); letter-spacing: -0.05em; }
+
+    .inventory-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; margin-top: 12px; max-height: 430px; overflow-y: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.84rem; min-width: 680px; }
+    th, td { border-bottom: 1px solid rgba(80,121,168,0.25); padding: 9px 10px; text-align: left; vertical-align: top; }
+    th { position: sticky; top: 0; background: #10243b; color: #dbeafe; z-index: 1; }
+    .badge { border-radius: 999px; background: rgba(59,130,246,0.18); color: #93c5fd; font-size: 0.74rem; font-weight: 900; padding: 4px 8px; white-space: nowrap; }
+
+    .empty-state { background: rgba(250,204,21,0.11); border: 1px solid rgba(250,204,21,0.35); color: #fde68a; padding: 12px; border-radius: 12px; font-size: 0.9rem; line-height: 1.45; margin-bottom: 12px; }
+    .danger-zone { border: 1px dashed rgba(252,165,165,0.55); background: rgba(239,68,68,0.08); border-radius: 12px; padding: 12px; margin-top: 12px; }
+
+    .toast { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%) translateY(120px); background: #020617; color: white; padding: 12px 16px; border-radius: 999px; font-size: 0.9rem; font-weight: 800; border: 1px solid rgba(96,165,250,0.28); opacity: 0; pointer-events: none; transition: all 0.25s ease; z-index: 999; max-width: calc(100% - 32px); text-align: center; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="topbar">
+      <h1>Smart Deals Workstation</h1>
+      <p>Armador rápido de combos de PC con inventario Excel, categorización automática y mensaje listo para WhatsApp.</p>
+    </section>
+
+    <nav class="view-tabs" aria-label="Secciones principales">
+      <button id="tabLoad" class="tab-btn active" type="button">📦 Carga de productos</button>
+      <button id="tabBuild" class="tab-btn" type="button">🛠️ Ensambla tu PC</button>
+    </nav>
+
+    <section id="viewLoad" class="view active">
+      <div class="view-grid">
+        <section class="card">
+          <h2>📦 Cargar productos</h2>
+          <p class="help">Sube un Excel con las columnas: <strong>MPN</strong>, <strong>Nombre del producto</strong>, <strong>Cantidad disponible</strong> y <strong>Precio</strong>. La categoría se detecta automáticamente usando el nombre del producto.</p>
+
+          <div class="field">
+            <label for="excelFile">Archivo Excel de inventario</label>
+            <input type="file" id="excelFile" accept=".xlsx,.xls" />
+          </div>
+
+          <div class="btn-row">
+            <button id="btnProcessExcel" class="btn btn-success" type="button">Cargar inventario</button>
+            <button id="btnDownloadTemplate" class="btn btn-primary" type="button">Descargar plantilla Excel</button>
+          </div>
+
+          <div class="stats">
+            <div class="stat"><strong id="statProducts">0</strong><span>Productos</span></div>
+            <div class="stat"><strong id="statCategories">0</strong><span>Categorías</span></div>
+          </div>
+
+          <div class="danger-zone">
+            <h3>Administración local</h3>
+            <p class="help" style="margin-bottom: 10px;">El inventario se guarda solo en este navegador/dispositivo. Borrarlo no afecta tu archivo Excel original.</p>
+            <button id="btnClearInventory" class="btn btn-danger" type="button">Borrar inventario guardado</button>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>🔎 Inventario cargado</h2>
+          <div class="field">
+            <label for="inventorySearch">Buscar en inventario</label>
+            <input type="search" id="inventorySearch" placeholder="Buscar por MPN, nombre o categoría..." />
+          </div>
+          <div id="inventoryTable"></div>
+        </section>
+      </div>
+    </section>
+
+    <section id="viewBuild" class="view">
+      <div class="build-grid">
+        <section class="card build-main">
+          <h2>🛠️ Ensambla tu PC</h2>
+          <p class="help">Cada categoría muestra solo sus componentes. También puedes escribir manualmente un producto y editar el precio sin modificar la base de inventario.</p>
+          <div id="emptyInventoryNotice" class="empty-state" style="display:none;">No hay inventario cargado todavía. Puedes cargar un Excel o escribir componentes manualmente en cada categoría.</div>
+          <div id="comboContainer"></div>
+          <div class="btn-row">
+            <button id="btnAddCustom" class="btn btn-soft" type="button">+ Agregar otro / servicio</button>
+            <button id="btnResetQuote" class="btn btn-warning" type="button">Limpiar cotización</button>
+          </div>
+        </section>
+
+        <aside class="build-side">
+          <section class="card">
+            <h2>💵 Resumen interno</h2>
+            <div class="two-cols">
+              <div class="total-box"><span>Costo nuestro</span><strong id="totalCost">$0.00</strong></div>
+              <div class="total-box"><span>Costo + IVA</span><strong id="totalWithTax">$0.00</strong></div>
+            </div>
+            <div class="field">
+              <label for="customerPrice">Precio final para cliente</label>
+              <input id="customerPrice" type="number" min="0" step="0.01" placeholder="Opcional para WhatsApp" />
+              <div class="muted-note">Este es el único precio que puede mostrarse en el mensaje. El costo interno no se comparte.</div>
+            </div>
+          </section>
+
+          <section class="card">
+            <h2>💬 Mensaje para cliente</h2>
+            <div class="field">
+              <label for="clientMessage">Texto para WhatsApp</label>
+              <textarea id="clientMessage" spellcheck="false"></textarea>
+            </div>
+            <div class="btn-row">
+              <button id="btnCopyMessage" class="btn btn-primary" type="button">Copiar para cliente</button>
+              <button id="btnDownloadQuote" class="btn btn-soft" type="button">Descargar TXT</button>
+            </div>
+          </section>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    const STORAGE_KEY = "smart_deals_inventory_v3";
+    const TAX_RATE = 1.13;
+
+    const REQUIRED_HEADERS = {
+      mpn: ["mpn", "modelo", "part number", "partnumber", "sku"],
+      name: ["nombre del producto", "producto", "nombre", "descripcion", "descripción", "item", "product name"],
+      quantity: ["cantidad disponible", "cantidad", "stock", "existencia", "disponible", "qty"],
+      price: ["precio", "price", "costo", "cost"]
+    };
+
+    const CATEGORIES = [
+      { key: "CPU", label: "CPU / Procesador", icon: "🧠" },
+      { key: "GPU", label: "GPU / Tarjeta gráfica", icon: "🎮" },
+      { key: "Motherboard", label: "Motherboard / Placa madre", icon: "🔌" },
+      { key: "RAM", label: "Memoria RAM", icon: "🧩" },
+      { key: "Almacenamiento", label: "Almacenamiento", icon: "💾" },
+      { key: "Refrigeracion", label: "Refrigeración", icon: "❄️" },
+      { key: "Fuente", label: "Fuente de poder", icon: "⚡" },
+      { key: "Gabinete", label: "Gabinete / Case", icon: "🖥️" }
+    ];
+
+    let inventory = [];
+
+    document.addEventListener("DOMContentLoaded", initializeApp);
+
+    function initializeApp() {
+      inventory = loadInventory();
+      bindEvents();
+      renderComboBuilder();
+      renderInventoryTable();
+      updateStats();
+      calculate();
+      switchView("load", false);
+    }
+
+    function bindEvents() {
+      document.getElementById("tabLoad").addEventListener("click", () => switchView("load"));
+      document.getElementById("tabBuild").addEventListener("click", () => switchView("build"));
+      document.getElementById("btnProcessExcel").addEventListener("click", processExcel);
+      document.getElementById("btnDownloadTemplate").addEventListener("click", downloadTemplate);
+      document.getElementById("btnClearInventory").addEventListener("click", clearInventory);
+      document.getElementById("inventorySearch").addEventListener("input", renderInventoryTable);
+      document.getElementById("btnAddCustom").addEventListener("click", addCustomCategoryRow);
+      document.getElementById("btnResetQuote").addEventListener("click", resetQuote);
+      document.getElementById("customerPrice").addEventListener("input", calculate);
+      document.getElementById("customerPrice").addEventListener("blur", formatOptionalCustomerPrice);
+      document.getElementById("btnCopyMessage").addEventListener("click", copyMessage);
+      document.getElementById("btnDownloadQuote").addEventListener("click", downloadQuoteText);
+      document.addEventListener("click", event => { if (!event.target.closest(".product-wrap")) hideAllSuggestions(); });
+    }
+
+    function switchView(viewName, scrollToTop = true) {
+      const isLoad = viewName === "load";
+      document.getElementById("viewLoad").classList.toggle("active", isLoad);
+      document.getElementById("viewBuild").classList.toggle("active", !isLoad);
+      document.getElementById("tabLoad").classList.toggle("active", isLoad);
+      document.getElementById("tabBuild").classList.toggle("active", !isLoad);
+      hideAllSuggestions();
+      if (scrollToTop) window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function loadInventory() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveInventory() { localStorage.setItem(STORAGE_KEY, JSON.stringify(inventory)); }
+    function normalizeText(value) { return String(value || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim(); }
+    function cleanText(value) { return String(value || "").replace(/\s+/g, " ").trim(); }
+
+    function parsePrice(value) {
+      if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+      const cleaned = String(value || "").replace(/\s/g, "").replace(/\$/g, "").replace(/,/g, "");
+      const parsed = parseFloat(cleaned);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    function formatMoney(value) { return "$" + parsePrice(value).toFixed(2); }
+    function toTwoDecimals(value) { return parsePrice(value).toFixed(2); }
+    function makeId(index, mpn, name) { return "sd-" + normalizeText(`${mpn}-${name}-${index}`).replace(/[^a-z0-9]+/g, "-"); }
+
+    function detectCategory(productName) {
+      const text = normalizeText(productName);
+      if (/(ryzen|intel core|core i[3579]|i[3579][-\s]?\d|celeron|pentium|athlon|threadripper|procesador|cpu)/i.test(text)) return "CPU";
+      if (/(rtx|gtx|geforce|quadro|radeon|rx\s?\d|arc\s?a\d|tarjeta grafica|video card|gpu|vga)/i.test(text)) return "GPU";
+      if (/(motherboard|mother board|placa madre|mainboard|mobo|b450|b550|b650|x570|x670|a520|h510|h610|h710|b660|b760|z690|z790|lga|am4|am5)/i.test(text)) return "Motherboard";
+      if (/(ram|memoria|ddr3|ddr4|ddr5|sodimm|dimm|vengeance|fury|trident)/i.test(text)) return "RAM";
+      if (/(ssd|nvme|m\.2|hdd|disco duro|drive|storage|almacenamiento|sata|portable drive)/i.test(text)) return "Almacenamiento";
+      if (/(cooler|cooling|refrigeracion|refrigeración|aio|liquid|ventilador|fan|thermal|heatsink|disipador)/i.test(text)) return "Refrigeracion";
+      if (/(fuente|power supply|psu|watts|watt|[0-9]{3,4}w|80\s?plus|bronze|gold|platinum)/i.test(text)) return "Fuente";
+      if (/(gabinete|case|chasis|chassis|tower|mid tower|atx case|micro atx case)/i.test(text)) return "Gabinete";
+      return "Otros";
+    }
+
+    function findHeaderMap(rows) {
+      for (let rowIndex = 0; rowIndex < Math.min(rows.length, 25); rowIndex++) {
+        const cells = (rows[rowIndex] || []).map(normalizeText);
+        const map = {};
+        Object.keys(REQUIRED_HEADERS).forEach(field => {
+          const foundIndex = cells.findIndex(cell => REQUIRED_HEADERS[field].includes(cell));
+          if (foundIndex !== -1) map[field] = foundIndex;
+        });
+        if (map.mpn !== undefined && map.name !== undefined && map.quantity !== undefined && map.price !== undefined) return { headerRowIndex: rowIndex, map };
+      }
+      return null;
+    }
+
+    function processExcel() {
+      if (typeof XLSX === "undefined") return showToast("No se cargó la librería de Excel. Revisa tu conexión a internet.");
+      const file = document.getElementById("excelFile").files[0];
+      if (!file) return showToast("Selecciona un archivo Excel primero.");
+
+      const reader = new FileReader();
+      reader.onload = event => {
+        try {
+          const workbook = XLSX.read(new Uint8Array(event.target.result), { type: "array" });
+          const sheetName = workbook.SheetNames[0];
+          if (!sheetName) return showToast("El Excel no contiene hojas.");
+          const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: "" });
+          const headerInfo = findHeaderMap(rows);
+          if (!headerInfo) return showToast("No encontré columnas válidas: MPN, Nombre del producto, Cantidad disponible y Precio.");
+
+          const imported = [];
+          const map = headerInfo.map;
+          for (let i = headerInfo.headerRowIndex + 1; i < rows.length; i++) {
+            const row = rows[i] || [];
+            const mpn = cleanText(row[map.mpn]);
+            const name = cleanText(row[map.name]);
+            const quantity = parseInt(String(row[map.quantity] || "").replace(/[^0-9-]/g, ""), 10);
+            const price = parsePrice(row[map.price]);
+            if (!name) continue;
+            imported.push({ id: makeId(i, mpn, name), mpn, name, quantity: Number.isFinite(quantity) ? quantity : 0, price: Number(price.toFixed(2)), category: detectCategory(name), source: "excel" });
+          }
+
+          if (!imported.length) return showToast("El Excel tiene encabezados válidos, pero no encontré productos.");
+          inventory = imported;
+          saveInventory();
+          renderComboBuilder();
+          renderInventoryTable();
+          updateStats();
+          calculate();
+          document.getElementById("excelFile").value = "";
+          showToast(`Inventario cargado: ${imported.length} productos.`);
+        } catch (error) {
+          console.error(error);
+          showToast("Error leyendo el Excel. Revisa que sea .xlsx/.xls y tenga las columnas correctas.");
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function downloadTemplate() {
+      if (typeof XLSX === "undefined") return showToast("No se cargó la librería de Excel. Revisa tu conexión a internet.");
+      const rows = [["MPN", "Nombre del producto", "Cantidad disponible", "Precio"], ["100-100000927BOX", "AMD Ryzen 5 5600X 6-Core AM4 Processor", 5, 125.00], ["RTX4060-8GB", "NVIDIA GeForce RTX 4060 8GB Graphics Card", 3, 299.99]];
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      ws["!cols"] = [{ wch: 22 }, { wch: 48 }, { wch: 20 }, { wch: 12 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Inventario");
+      XLSX.writeFile(wb, "Plantilla_Inventario_Smart_Deals.xlsx");
+    }
+
+    function clearInventory() {
+      if (!confirm("¿Seguro que deseas borrar el inventario guardado en este navegador?")) return;
+      inventory = [];
+      localStorage.removeItem(STORAGE_KEY);
+      renderComboBuilder(); renderInventoryTable(); updateStats(); calculate();
+      showToast("Inventario local borrado.");
+    }
+
+    function updateStats() {
+      document.getElementById("statProducts").textContent = inventory.length;
+      document.getElementById("statCategories").textContent = inventory.length ? new Set(inventory.map(item => item.category || "Otros")).size : 0;
+      document.getElementById("emptyInventoryNotice").style.display = inventory.length ? "none" : "block";
+    }
+
+    function renderInventoryTable() {
+      const target = document.getElementById("inventoryTable");
+      const query = normalizeText(document.getElementById("inventorySearch").value);
+      if (!inventory.length) { target.innerHTML = `<div class="empty-state">Todavía no hay inventario cargado.</div>`; return; }
+      const filtered = inventory.filter(item => normalizeText(`${item.mpn} ${item.name} ${item.category}`).includes(query));
+      if (!filtered.length) { target.innerHTML = `<div class="empty-state">No encontré productos con esa búsqueda.</div>`; return; }
+      target.innerHTML = `<div class="inventory-table-wrap"><table><thead><tr><th>MPN</th><th>Producto</th><th>Categoría</th><th>Stock</th><th>Precio</th></tr></thead><tbody>${filtered.map(item => `<tr><td>${escapeHtml(item.mpn || "-")}</td><td>${escapeHtml(item.name)}</td><td><span class="badge">${escapeHtml(item.category || "Otros")}</span></td><td>${Number(item.quantity || 0)}</td><td>${formatMoney(item.price)}</td></tr>`).join("")}</tbody></table></div>`;
+    }
+
+    function renderComboBuilder() {
+      const container = document.getElementById("comboContainer");
+      container.innerHTML = "";
+      CATEGORIES.forEach(category => {
+        const count = inventory.filter(item => item.category === category.key).length;
+        const card = document.createElement("div");
+        card.className = "category-card";
+        card.dataset.category = category.key;
+        card.innerHTML = `<div class="category-head"><div class="category-title">${category.icon} ${category.label}</div><div class="category-count">${count} disponibles</div></div><div class="rows"></div><button class="btn btn-soft add-row-btn" type="button">+ Agregar ${category.key}</button>`;
+        container.appendChild(card);
+        card.querySelector(".add-row-btn").addEventListener("click", () => addComboRow(category.key));
+        addComboRow(category.key);
+      });
+    }
+
+    function addComboRow(category, preset = {}) {
+      const categoryCard = document.querySelector(`.category-card[data-category="${category}"]`);
+      const rowsContainer = categoryCard ? categoryCard.querySelector(".rows") : document.getElementById("comboContainer");
+      const row = document.createElement("div");
+      row.className = "combo-row";
+      row.dataset.category = category;
+      row.dataset.inventoryId = preset.inventoryId || "";
+      row.innerHTML = `<div class="product-wrap"><input class="product-input" type="text" placeholder="Buscar o escribir producto..." value="${escapeAttribute(preset.name || "")}" autocomplete="off" /><div class="suggestions"></div><div class="muted-note">Puedes seleccionar del inventario o escribir manualmente.</div></div><div><input class="price-input" type="number" min="0" step="0.01" placeholder="Costo" value="${preset.price !== undefined ? toTwoDecimals(preset.price) : ""}" /><div class="muted-note">Costo interno</div></div><div><input class="qty-input" type="number" min="1" step="1" placeholder="Cant." value="${preset.qty || 1}" /><div class="muted-note stock-note">Stock: -</div></div><button class="btn btn-danger remove-btn" type="button">✖</button>`;
+      rowsContainer.appendChild(row);
+      row.querySelector(".product-input").addEventListener("input", event => handleProductInput(event.target));
+      row.querySelector(".product-input").addEventListener("focus", event => showSuggestions(event.target));
+      row.querySelector(".price-input").addEventListener("input", calculate);
+      row.querySelector(".price-input").addEventListener("blur", event => formatPriceInput(event.target));
+      row.querySelector(".qty-input").addEventListener("input", calculate);
+      row.querySelector(".remove-btn").addEventListener("click", () => { row.remove(); calculate(); });
+      calculate();
+    }
+
+    function addCustomCategoryRow() {
+      let customCard = document.querySelector(`.category-card[data-category="Otros"]`);
+      if (!customCard) {
+        customCard = document.createElement("div");
+        customCard.className = "category-card";
+        customCard.dataset.category = "Otros";
+        customCard.innerHTML = `<div class="category-head"><div class="category-title">➕ Otros / Servicio / Manual</div><div class="category-count">manual</div></div><div class="rows"></div><button class="btn btn-soft add-row-btn" type="button">+ Agregar otro</button>`;
+        document.getElementById("comboContainer").appendChild(customCard);
+        customCard.querySelector(".add-row-btn").addEventListener("click", () => addComboRow("Otros"));
+      }
+      addComboRow("Otros", { name: "", price: "", qty: 1 });
+    }
+
+    function handleProductInput(input) {
+      const row = input.closest(".combo-row");
+      row.dataset.inventoryId = "";
+      const stockNote = row.querySelector(".stock-note");
+      if (stockNote) stockNote.textContent = "Stock: manual";
+      showSuggestions(input);
+      calculate();
+    }
+
+    function showSuggestions(input) {
+      const row = input.closest(".combo-row");
+      const box = row.querySelector(".suggestions");
+      const category = row.dataset.category;
+      const query = normalizeText(input.value);
+      const matches = inventory.filter(item => item.category === category).filter(item => normalizeText(`${item.mpn} ${item.name}`).includes(query)).slice(0, 30);
+      if (!matches.length) { box.innerHTML = `<div class="no-results">No hay coincidencias en ${escapeHtml(category)}. Puedes escribirlo manualmente.</div>`; box.style.display = "block"; return; }
+      box.innerHTML = matches.map(item => `<div class="suggestion-item" data-id="${escapeAttribute(item.id)}"><div class="suggestion-main">${escapeHtml(item.name)}</div><div class="suggestion-meta">MPN: ${escapeHtml(item.mpn || "-")} · Costo: ${formatMoney(item.price)} · <span class="${Number(item.quantity || 0) <= 0 ? "stock-pill stock-zero" : "stock-pill"}">Stock: ${Number(item.quantity || 0)}</span></div></div>`).join("");
+      box.querySelectorAll(".suggestion-item").forEach(itemEl => itemEl.addEventListener("click", () => selectProduct(itemEl, itemEl.dataset.id)));
+      box.style.display = "block";
+    }
+
+    function hideAllSuggestions() { document.querySelectorAll(".suggestions").forEach(box => box.style.display = "none"); }
+
+    function selectProduct(element, itemId) {
+      const row = element.closest(".combo-row");
+      const item = inventory.find(product => product.id === itemId);
+      if (!item) return;
+      row.dataset.inventoryId = item.id;
+      row.querySelector(".product-input").value = item.name;
+      row.querySelector(".price-input").value = toTwoDecimals(item.price);
+      const stockNote = row.querySelector(".stock-note");
+      if (stockNote) stockNote.textContent = `Stock: ${Number(item.quantity || 0)}`;
+      hideAllSuggestions();
+      calculate();
+    }
+
+    function formatPriceInput(input) { if (input.value !== "") input.value = toTwoDecimals(input.value); calculate(); }
+    function formatOptionalCustomerPrice() { const input = document.getElementById("customerPrice"); if (input.value !== "") input.value = toTwoDecimals(input.value); calculate(); }
+
+    function getQuoteRows() {
+      return Array.from(document.querySelectorAll(".combo-row")).map(row => {
+        const name = cleanText(row.querySelector(".product-input").value);
+        const price = parsePrice(row.querySelector(".price-input").value);
+        const qty = Math.max(1, parseInt(row.querySelector(".qty-input").value || "1", 10) || 1);
+        return { name, price, qty, category: row.dataset.category || "Otros", subtotal: price * qty };
+      }).filter(item => item.name || item.price > 0);
+    }
+
+    function calculate() {
+      const quoteRows = getQuoteRows();
+      const total = quoteRows.reduce((sum, item) => sum + item.subtotal, 0);
+      document.getElementById("totalCost").textContent = formatMoney(total);
+      document.getElementById("totalWithTax").textContent = formatMoney(total * TAX_RATE);
+      generateClientMessage(quoteRows);
+    }
+
+    function generateClientMessage(quoteRows) {
+      const customerPriceRaw = document.getElementById("customerPrice").value;
+      const customerPrice = customerPriceRaw === "" ? null : parsePrice(customerPriceRaw);
+      let message = "¡Hola! 👋 Te comparto nuestra propuesta de equipo:\n\n";
+      if (!quoteRows.length) {
+        message += "Componentes por confirmar.\n\n";
+      } else {
+        const grouped = quoteRows.reduce((acc, item) => { if (!acc[item.category]) acc[item.category] = []; acc[item.category].push(item); return acc; }, {});
+        CATEGORIES.concat([{ key: "Otros", label: "Otros / Servicio", icon: "➕" }]).forEach(cat => {
+          const rows = grouped[cat.key] || [];
+          if (!rows.length) return;
+          message += `${cat.icon} ${cat.label}:\n`;
+          rows.forEach(item => { message += `• ${item.name}${item.qty > 1 ? ` x${item.qty}` : ""}\n`; });
+          message += "\n";
+        });
+      }
+      message += "✨ Calidad garantizada en Smart Deals.\n";
+      message += "📌 Disponibilidad sujeta a inventario al momento de confirmar.\n\n";
+      message += `🦉Precio: ${customerPrice !== null && customerPrice > 0 ? formatMoney(customerPrice) : ""}`;
+      document.getElementById("clientMessage").value = message;
+    }
+
+    async function copyMessage() {
+      const textArea = document.getElementById("clientMessage");
+      const text = textArea.value;
+      if (!text.trim()) return showToast("No hay mensaje para copiar.");
+      try {
+        if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(text);
+        else { textArea.focus(); textArea.select(); document.execCommand("copy"); window.getSelection().removeAllRanges(); }
+        showToast("Mensaje copiado para WhatsApp.");
+      } catch { showToast("No pude copiar automáticamente. Selecciona el texto manualmente."); }
+    }
+
+    function downloadQuoteText() {
+      const blob = new Blob([document.getElementById("clientMessage").value], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "Cotizacion_Smart_Deals.txt";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function resetQuote() {
+      if (!confirm("¿Limpiar la cotización actual? Esto no borra el inventario.")) return;
+      document.getElementById("customerPrice").value = "";
+      renderComboBuilder();
+      calculate();
+      showToast("Cotización limpiada.");
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.classList.add("show");
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => toast.classList.remove("show"), 2800);
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    function escapeAttribute(value) { return escapeHtml(value).replace(/`/g, "&#096;"); }
+  </script>
+</body>
+</html>
